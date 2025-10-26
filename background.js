@@ -13,10 +13,13 @@ chrome.tabs.query( //get current Tab
         active: true
     },
     function(tabArray) {
-        currentTab = tabArray[0];
-        chrome.tabs.executeScript(currentTab.ib, {
-            file: 'inject.js'
-        });
+        if (tabArray && tabArray.length > 0) {
+            currentTab = tabArray[0];
+            chrome.scripting.executeScript({
+                target: { tabId: currentTab.id },
+                files: ['inject.js']
+            });
+        }
     }
 )
 
@@ -65,7 +68,7 @@ let specifics = {
     "Square OAuth Secret": "sq0csp-[0-9A-Za-z\\-_]{43}",
     "Telegram Bot API Key": "[0-9]+:AA[0-9A-Za-z\\-_]{33}",
     "Twilio API Key": "SK[0-9a-fA-F]{32}",
-    "Github Auth Creds": "https:\/\/[a-zA-Z0-9]{40}@github\.com",
+    "Github Auth Creds": "https:\/\/[a-zA-Z0-9]{40}@github\\.com",
    // "Twitter Access Token": "[tT][wW][iI][tT][tT][eE][rR].*[1-9][0-9]+-[0-9a-zA-Z]{40}",
    // "Twitter OAuth": "[tT][wW][iI][tT][tT][eE][rR].*['|\"][0-9a-zA-Z]{35,44}['|\"]"
 }
@@ -160,19 +163,22 @@ var updateTabAndAlert = function(finding){
 }
 
 var updateTab = function(){
-     chrome.tabs.getSelected(null, function(tab) {
-        var tabId = tab.id;
-        var tabUrl = tab.url;
-        var origin = (new URL(tabUrl)).origin
-        chrome.storage.sync.get(["leakedKeys"], function(result) {
-            if (Array.isArray(result.leakedKeys[origin])){
-                var originKeys = result.leakedKeys[origin].length.toString();
-            }else{
-                var originKeys = "";
-            }
-            chrome.browserAction.setBadgeText({text: originKeys});
-            chrome.browserAction.setBadgeBackgroundColor({color: '#ff0000'});
-        })
+     chrome.tabs.query({active: true, lastFocusedWindow: true}, function(tabs) {
+        if (tabs && tabs.length > 0) {
+            var tab = tabs[0];
+            var tabId = tab.id;
+            var tabUrl = tab.url;
+            var origin = (new URL(tabUrl)).origin
+            chrome.storage.sync.get(["leakedKeys"], function(result) {
+                if (result.leakedKeys && Array.isArray(result.leakedKeys[origin])){
+                    var originKeys = result.leakedKeys[origin].length.toString();
+                }else{
+                    var originKeys = "";
+                }
+                chrome.action.setBadgeText({text: originKeys});
+                chrome.action.setBadgeBackgroundColor({color: '#ff0000'});
+            })
+        }
     });
 }
 
@@ -238,7 +244,7 @@ var checkForGitDir = function(data, url){
 
 }
 var js_url;
-chrome.extension.onMessage.addListener(function(request, sender, sendResponse) {
+chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 
     chrome.storage.sync.get(['generics'], function(useGenerics) {
         chrome.storage.sync.get(['specifics'], function(useSpecifics) {
@@ -312,4 +318,3 @@ chrome.extension.onMessage.addListener(function(request, sender, sendResponse) {
 
 
 });
-
